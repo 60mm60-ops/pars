@@ -2040,8 +2040,9 @@ function generateBoardLayout(){
   computeBoardColors();
   document.querySelectorAll('.part-img-ctrl2').forEach((_,i)=>updatePartImagePreview(i));
   if(state.currentTab==='board') setTimeout(calcFlowPath,120);
-  // 各セルで中身が溢れていないかチェック（溢れていたら直前の操作をロールバック）
-  setTimeout(checkBoardOverflow, 0);
+  // 各セルで中身が溢れていないかチェック（溢れていたら直前の操作をロールバック）。
+  // setTimeoutだと連続ドラッグ中に破綻値が「有効」として記録されてしまうため同期実行。
+  checkBoardOverflow();
 }
 
 // 各 b-slot 内で中身がセルからはみ出していないか判定。
@@ -2055,8 +2056,13 @@ function checkBoardOverflow(){
     // テキスト系セルのみ判定（画像はcontainで溢れない）
     const inner = slot.querySelector('.b-title, .b-text, .b-spec');
     if(!inner) return;
-    // 中身の実高さがセルの内寸を一定以上超えていたらNG
-    if(inner.scrollHeight > slot.clientHeight + 2){
+    // 中身(inner)が自身の表示枠を縦・横どちらかで超えていたらNG。
+    // 文字サイズを上げると横に1〜2文字あふれて改行→縦に破綻するため両方見る。
+    // さらにセル(slot)の高さを超えていないかも併せて確認する。
+    const innerOverflow = inner.scrollHeight > inner.clientHeight + 2 ||
+                          inner.scrollWidth  > inner.clientWidth  + 2;
+    const slotOverflow  = inner.scrollHeight > slot.clientHeight + 2;
+    if(innerOverflow || slotOverflow){
       overflow = true;
     }
   });
